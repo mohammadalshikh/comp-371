@@ -384,13 +384,19 @@ GLuint createSphereVAO(unsigned int rings, unsigned int sectors, unsigned int& i
     float const R = 1.0f / float(rings - 1);
     float const S = 1.0f / float(sectors - 1);
 
+    // If this is the sun (30,30), make it yellow, else pink
+    bool isSun = (rings == 30 && sectors == 30);
     for (unsigned int r = 0; r < rings; ++r) {
         for (unsigned int s = 0; s < sectors; ++s) {
             float const y = sin(-glm::half_pi<float>() + glm::pi<float>() * r * R);
             float const x = cos(2 * glm::pi<float>() * s * S) * sin(glm::pi<float>() * r * R);
             float const z = sin(2 * glm::pi<float>() * s * S) * sin(glm::pi<float>() * r * R);
             vertices.push_back(vec3(x, y, z));
-            colors.push_back(vec3(1.0f, 0.0f, 1.0f)); // Pink color!
+            if (isSun) {
+                colors.push_back(vec3(1.0f, 1.0f, 0.0f)); // Yellow for sun
+            } else {
+                colors.push_back(vec3(1.0f, 0.0f, 1.0f)); // Pink for orb
+            }
         }
     }
 
@@ -525,7 +531,6 @@ int main(int argc, char*argv[])
     glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
 
 
-
     // Define and upload geometry to the GPU here ...
     int vao = createVertexBufferObject();
 
@@ -539,7 +544,15 @@ int main(int argc, char*argv[])
 
     GLuint orbShader = compileTexturedSphereShader();
 
+    
+    // Draw orb1 (pink planet)
+    unsigned int orbIndexCount = 0;
+    GLuint orbVAO = createTexturedSphereVAO(40, 40, orbIndexCount); // Now orb is Earth
 
+    // === SUN SETUP ===
+    unsigned int sunIndexCount = 0;
+    GLuint sunVAO = createSphereVAO(30, 30, sunIndexCount); // bigger, smoother sun
+    
     // For frame time
     float lastFrameTime = glfwGetTime();
     double lastMousePosX, lastMousePosY;
@@ -668,18 +681,17 @@ int main(int argc, char*argv[])
         mat4 orbWorldMatrix = translate(mat4(1.0f), vec3(orbX, orbY, orbZ)) * scale(mat4(1.0f), vec3(orbSize, orbSize, orbSize));
 
         // === RENDER EARTH (or moon) ===
+        // === RENDER EARTH (textured) ===
+        // Render the Earth as the pink planet (now textured Earth)
         glUseProgram(orbShader);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, earthTexture);
         glUniform1i(glGetUniformLocation(orbShader, "texture1"), 0);
-
-        // set matrices
         glUniformMatrix4fv(glGetUniformLocation(orbShader, "projectionMatrix"), 1, GL_FALSE, &projectionMatrix[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(orbShader, "viewMatrix"), 1, GL_FALSE, &viewMatrix[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(orbShader, "worldMatrix"), 1, GL_FALSE, &orbWorldMatrix[0][0]);
-
-        glBindVertexArray(earthVAO);
-        glDrawElements(GL_TRIANGLES, earthIndexCount, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(orbVAO);
+        glDrawElements(GL_TRIANGLES, orbIndexCount, GL_UNSIGNED_INT, 0);
 
         // === Render the Moon orbiting around the Earth ===
 
@@ -709,6 +721,22 @@ glBindVertexArray(moonVAO);
 glDrawElements(GL_TRIANGLES, moonIndexCount, GL_UNSIGNED_INT, 0);
 
 
+
+
+        // === RENDER SUN FIRST ===
+        // Switch back to color-only shader for sun
+        glUseProgram(shaderProgram);
+        glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
+        glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, &projectionMatrix[0][0]);
+        glBindVertexArray(sunVAO);
+        mat4 sunWorldMatrix = scale(mat4(1.0f), vec3(0.5f, 0.5f, 0.5f)); // Sun at origin, larger size
+        glUniformMatrix4fv(worldMatrixLocation, 1, GL_FALSE, &sunWorldMatrix[0][0]);
+        glDrawElements(GL_TRIANGLES, sunIndexCount, GL_UNSIGNED_INT, 0);
+
+        // === RENDER FLOATING ORB (PINK PLANET) ===
+        glBindVertexArray(orbVAO);
+        glUniformMatrix4fv(worldMatrixLocation, 1, GL_FALSE, &orbWorldMatrix[0][0]);
+        glDrawElements(GL_TRIANGLES, orbIndexCount, GL_UNSIGNED_INT, 0);
 
         // End Frame
         glfwSwapBuffers(window);
