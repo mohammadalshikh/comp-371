@@ -17,8 +17,7 @@
 using namespace glm;
 using namespace std;
 
-
-// === Add at top with includes ===
+// === At top with includes ===
 GLuint createTexturedSphereVAO(unsigned int rings, unsigned int sectors, unsigned int &indexCount)
 {
     std::vector<vec3> vertices;
@@ -102,7 +101,6 @@ GLuint loadTexture(const char *path)
     return textureID;
 }
 
-
 std::string readFile(const char *filePath)
 {
     std::ifstream file(filePath);
@@ -116,27 +114,47 @@ std::string readFile(const char *filePath)
     return buffer.str();
 }
 
-std::string getTexturedSphereVertexShaderSource() {
-    return readFile("textured_sphere.vert.glsl");
+std::string getTexturedSphereVertexShaderSource()
+{
+    return readFile("shaders/textured_sphere.vert.glsl");
 }
 
-std::string getTexturedSphereFragmentShaderSource() {
-    return readFile("textured_sphere.frag.glsl");
+std::string getTexturedSphereFragmentShaderSource()
+{
+    return readFile("shaders/textured_sphere.frag.glsl");
 }
 
+std::string getVertexShaderSource()
+{
+    return readFile("shaders/shader.vert.glsl");
+}
 
+std::string getFragmentShaderSource()
+{
+    return readFile("shaders/shader.frag.glsl");
+}
+
+std::string getSkyboxVertexShaderSource()
+{
+    return readFile("shaders/skybox_vertex.glsl");
+}
+
+std::string getSkyboxFragmentShaderSource()
+{
+    return readFile("shaders/skybox_fragment.glsl");
+}
 
 GLuint compileTexturedSphereShader()
 {
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     std::string vsSourceStr = getTexturedSphereVertexShaderSource();
-    const char* vsSource = vsSourceStr.c_str();
+    const char *vsSource = vsSourceStr.c_str();
     glShaderSource(vs, 1, &vsSource, nullptr);
     glCompileShader(vs);
 
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
     std::string fsSourceStr = getTexturedSphereFragmentShaderSource();
-    const char* fsSource = fsSourceStr.c_str();
+    const char *fsSource = fsSourceStr.c_str();
     glShaderSource(fs, 1, &fsSource, nullptr);
     glCompileShader(fs);
 
@@ -149,17 +167,7 @@ GLuint compileTexturedSphereShader()
     return program;
 }
 
-std::string getVertexShaderSource()
-{
-    return readFile("shader.vert.glsl");
-}
-
-std::string getFragmentShaderSource()
-{
-    return readFile("shader.frag.glsl");
-}
-
-int compileAndLinkShaders()
+int compileVertexAndFragShaders()
 {
     // compile and link shader program
     // return shader program id
@@ -219,7 +227,7 @@ int compileAndLinkShaders()
 
 int createVertexBufferObject()
 {
-    // Cube model
+    // cube model
     vec3 vertexArray[] = {
         // position,                            color
         vec3(-0.5f, -0.5f, -0.5f), vec3(1.0f, 0.0f, 0.0f), //left - red
@@ -259,34 +267,34 @@ int createVertexBufferObject()
         vec3(-0.5f, 0.5f, 0.5f),   vec3(1.0f, 1.0f, 0.0f)};
 
 
-    // Create a vertex array
+    // create a vertex array
     GLuint vertexArrayObject;
     glGenVertexArrays(1, &vertexArrayObject);
     glBindVertexArray(vertexArrayObject);
 
 
-    // Upload Vertex Buffer to the GPU, keep a reference to it (vertexBufferObject)
+    // upload Vertex Buffer to the GPU, keep a reference to it (vertexBufferObject)
     GLuint vertexBufferObject;
     glGenBuffers(1, &vertexBufferObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexArray), vertexArray, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0,                // attribute 0 matches aPos in Vertex Shader
-                          3,                // size
-                          GL_FLOAT,         // type
-                          GL_FALSE,         // normalized?
-                          2 * sizeof(vec3), // stride - each vertex contain 2 vec3 (position, color)
-                          (void *)0         // array buffer offset
-    );
+    glVertexAttribPointer(
+		0, 
+		3, 
+		GL_FLOAT, 
+		GL_FALSE, \
+		2 * sizeof(vec3), 
+		(void *)0);
     glEnableVertexAttribArray(0);
 
 
-    glVertexAttribPointer(1, // attribute 1 matches aColor in Vertex Shader
-                          3,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          2 * sizeof(vec3),
-                          (void *)sizeof(vec3) // color is offseted a vec3 (comes after position)
+    glVertexAttribPointer(1,
+		3, 
+		GL_FLOAT, 
+		GL_FALSE, 
+		2 * sizeof(vec3), 
+		(void *)sizeof(vec3)
     );
     glEnableVertexAttribArray(1);
 
@@ -306,15 +314,16 @@ unsigned int loadCubemap(std::vector<std::string> faces)
         unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
         if (data)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                         0,
-                         GL_RGB,
-                         width,
-                         height,
-                         0,
-                         GL_RGB,
-                         GL_UNSIGNED_BYTE,
-                         data);
+            glTexImage2D(
+				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+				0, 
+				GL_RGB, 
+				width, 
+				height, 
+				0, 
+				GL_RGB, 
+				GL_UNSIGNED_BYTE, 
+				data);
             stbi_image_free(data);
         }
         else
@@ -334,34 +343,17 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 
 unsigned int compileSkyboxShaderProgram()
 {
-    const char *skyboxVertexShaderSource = R"(
-        #version 330 core
-        layout (location = 0) in vec3 aPos;
-        out vec3 TexCoords;
-        uniform mat4 view;
-        uniform mat4 projection;
-        void main() {
-            TexCoords = aPos;
-            vec4 pos = projection * view * vec4(aPos, 1.0);
-            gl_Position = pos.xyww;
-        })";
-
-    const char *skyboxFragmentShaderSource = R"(
-        #version 330 core
-        in vec3 TexCoords;
-        out vec4 FragColor;
-        uniform samplerCube skybox;
-        void main() {
-            FragColor = texture(skybox, TexCoords);
-        })";
-
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &skyboxVertexShaderSource, nullptr);
+    std::string vertexShaderStr = getSkyboxVertexShaderSource();
+    const char* vertexShaderSource = vertexShaderStr.c_str();
+    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
     glCompileShader(vertexShader);
     // TODO: check compile errors
 
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &skyboxFragmentShaderSource, nullptr);
+    std::string fragmentShaderStr = getSkyboxFragmentShaderSource();
+    const char* fragmentShaderSource = fragmentShaderStr.c_str();
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
     glCompileShader(fragmentShader);
     // TODO: check compile errors
 
@@ -394,7 +386,7 @@ GLuint createSphereVAO(unsigned int rings, unsigned int sectors, unsigned int &i
             float const x = cos(2 * glm::pi<float>() * s * S) * sin(glm::pi<float>() * r * R);
             float const z = sin(2 * glm::pi<float>() * s * S) * sin(glm::pi<float>() * r * R);
             vertices.push_back(vec3(x, y, z));
-            colors.push_back(vec3(1.0f, 0.0f, 1.0f)); // Pink color!
+            colors.push_back(vec3(1.0f, 0.0f, 1.0f)); // pink color!
         }
     }
 
@@ -418,19 +410,19 @@ GLuint createSphereVAO(unsigned int rings, unsigned int sectors, unsigned int &i
 
     glGenBuffers(2, vbo);
 
-    // Position buffer
+    // position buffer
     glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vec3), &vertices[0], GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0); // aPos
     glEnableVertexAttribArray(0);
 
-    // Color buffer
+    // color buffer
     glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
     glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof(vec3), &colors[0], GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0); // aColor
     glEnableVertexAttribArray(1);
 
-    // Indices
+    // indices
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
@@ -441,7 +433,6 @@ GLuint createSphereVAO(unsigned int rings, unsigned int sectors, unsigned int &i
 
 int main(int argc, char *argv[])
 {
-    // Initialize GLFW and OpenGL version
     glfwInit();
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -449,7 +440,7 @@ int main(int argc, char *argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    // Create Window and rendering context using GLFW, resolution is 800x600
+	// glfw window
     GLFWwindow *window = glfwCreateWindow(800, 600, "Comp371 - Lab 03", NULL, NULL);
     if (window == NULL)
     {
@@ -459,11 +450,11 @@ int main(int argc, char *argv[])
     }
     glfwMakeContextCurrent(window);
 
-    // @TODO 3 - Disable mouse cursor after creating window
+    // disable the cursor
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // Initialize GLEW
-    glewExperimental = true; // Needed for core profile
+    // init glew
+    glewExperimental = true;
     if (glewInit() != GLEW_OK)
     {
         std::cerr << "Failed to create GLEW" << std::endl;
@@ -471,19 +462,18 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // compile base shaders
+    int shaderProgram = compileVertexAndFragShaders();
 
-    // Compile and link shaders here ...
-    int shaderProgram = compileAndLinkShaders();
-
-    // We can set the shader once, since we have only one
     glUseProgram(shaderProgram);
 
-    // Compile skybox shader
+    // compile skybox shader
     unsigned int skyboxShaderProgram = compileSkyboxShaderProgram();
     glUseProgram(skyboxShaderProgram);
-    glUniform1i(glGetUniformLocation(skyboxShaderProgram, "skybox"), 0); // Set sampler to texture unit 0
+    glUniform1i(glGetUniformLocation(skyboxShaderProgram, "skybox"), 0); 
+	// set sampler to texture unit 0
 
-    // Load skybox cubemap textures
+    // load skybox cubemap textures
     std::vector<std::string> faces = {"textures/skybox1/1.png",
                                       "textures/skybox1/2.png",
                                       "textures/skybox1/3.png",
@@ -492,46 +482,50 @@ int main(int argc, char *argv[])
                                       "textures/skybox1/6.png"};
     unsigned int cubemapTexture = loadCubemap(faces);
 
-    // Camera parameters for view transform
+    // camera parameters for view transform
     vec3 cameraPosition(0.6f, 1.0f, 10.0f);
     vec3 cameraLookAt(0.0f, 0.0f, -1.0f);
     vec3 cameraUp(0.0f, 1.0f, 0.0f);
 
-    // Other camera parameters
+    // other camera parameters
     float cameraSpeed = 3.0f;
     float cameraFastSpeed = 2 * cameraSpeed;
     float cameraHorizontalAngle = 90.0f;
     float cameraVerticalAngle = 0.0f;
     bool cameraFirstPerson = true; // press 1 or 2 to toggle this variable
 
-    // Spinning cube at camera position
+    // spinning cube at camera position
     float spinningCubeAngle = 0.0f;
 
-    // Define Floating Orb 1 parameteres
+    // define floating orb 1 parameters
     float orbAngle = 0.0f; // degrees
     float orbRadius = 2.0f;
     float orbHeight = 1.0f;
     float orbSize = 0.2f; // slightly bigger than your spinning cube
 
     // Set projection matrix for shader, this won't change
-    mat4 projectionMatrix = glm::perspective(70.0f,           // field of view in degrees
-                                             800.0f / 600.0f, // aspect ratio
-                                             0.01f,
-                                             100.0f); // near and far (near > 0)
+    mat4 projectionMatrix = glm::perspective(
+		70.0f,
+        800.0f / 600.0f,
+        0.01f,
+        100.0f
+	);
 
     GLuint projectionMatrixLocation = glGetUniformLocation(shaderProgram, "projectionMatrix");
     glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, &projectionMatrix[0][0]);
 
     // Set initial view matrix
-    mat4 viewMatrix = lookAt(cameraPosition,                // eye
-                             cameraPosition + cameraLookAt, // center
-                             cameraUp);                     // up
+    mat4 viewMatrix = lookAt(
+		cameraPosition, 
+		cameraPosition + cameraLookAt, 
+		cameraUp
+		);
 
     GLuint viewMatrixLocation = glGetUniformLocation(shaderProgram, "viewMatrix");
     glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
 
 
-    // Define and upload geometry to the GPU here ...
+    // define and upload geometry to the GPU
     int vao = createVertexBufferObject();
 
     unsigned int moonIndexCount = 0;
@@ -549,21 +543,15 @@ int main(int argc, char *argv[])
     GLuint sunVAO = createTexturedSphereVAO(40, 40, sunIndexCount);
 
 
-    // For frame time
+    // for frame time
     float lastFrameTime = glfwGetTime();
     double lastMousePosX, lastMousePosY;
     glfwGetCursorPos(window, &lastMousePosX, &lastMousePosY);
 
-    // Other OpenGL states to set once
-    // Enable Backface culling
+    // enable Backface culling
     glEnable(GL_CULL_FACE);
 
-    // @TODO 1 - Enable Depth Test
-    // When rendering 3D scenes, you might draw objects that are behind others, and OpenGL doesn't automatically know which object should be in front. By default, if you draw a far object after a near object, it will appear on top — even though it shouldn't.
-    // Depth testing solves this by:
-    // Using a Z-buffer (or depth buffer) to keep track of how far each pixel is from the camera.
-    // Making sure closer objects are drawn in front of farther ones — regardless of draw order.
-
+    // enable depth testing
     glEnable(GL_DEPTH_TEST);
 
 
@@ -595,20 +583,17 @@ int main(int argc, char *argv[])
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
 
-    // Entering Main Loop
+    // main loop
     while (!glfwWindowShouldClose(window))
     {
-        // Frame time calculation
+        // frame time calculation
         float dt = glfwGetTime() - lastFrameTime;
         lastFrameTime += dt;
 
-        // Each frame, reset color of each pixel to glClearColor
-
-        // @TODO 1 - Clear Depth Buffer Bit as well
+        // clear depth and color buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // TODO 6
-        // Set the view matrix for first and third person cameras
+        // first and third person camera toggle
         if (cameraFirstPerson)
         {
             viewMatrix = lookAt(cameraPosition, cameraPosition + cameraLookAt, cameraUp);
@@ -623,45 +608,70 @@ int main(int argc, char *argv[])
         glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
 
         // === RENDER SKYBOX FIRST ===
-        glDepthFunc(GL_LEQUAL);            // Change depth function so skybox passes depth test
-        glUseProgram(skyboxShaderProgram); // Use your skybox shader
 
-        mat4 skyboxView = mat4(mat3(viewMatrix)); // remove translation for skybox
-        glUniformMatrix4fv(glGetUniformLocation(skyboxShaderProgram, "view"), 1, GL_FALSE, &skyboxView[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(skyboxShaderProgram, "projection"),
-                           1,
-                           GL_FALSE,
-                           &projectionMatrix[0][0]);
+        // change depth function so skybox passes depth test
+        glDepthFunc(GL_LEQUAL);
+
+        // Use your skybox shader
+        glUseProgram(skyboxShaderProgram);
+
+        // remove translation for skybox
+        mat4 skyboxView = mat4(mat3(viewMatrix));
+
+        glUniformMatrix4fv(
+			glGetUniformLocation(
+			skyboxShaderProgram, 
+			"view"
+		), 
+			1, 
+			GL_FALSE, 
+			&skyboxView[0][0]
+		);
+
+        glUniformMatrix4fv(
+			glGetUniformLocation(
+			skyboxShaderProgram, 
+			"projection"
+		), 
+			1, 
+			GL_FALSE,
+			&projectionMatrix[0][0]
+		);
 
         glBindVertexArray(skyboxVAO);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthFunc(GL_LESS); // Restore default depth function
+        glDepthFunc(GL_LESS); // restore default depth function
 
         // === REST OF SCENE ===
         glUseProgram(shaderProgram);
         glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
         glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, &projectionMatrix[0][0]);
 
-        // Draw geometry
+        // draw geometry
         glBindVertexArray(vao);
 
-        // // Draw ground
-        // mat4 groundWorldMatrix = translate(mat4(1.0f), vec3(0.0f, -0.01f, 0.0f)) * scale(mat4(1.0f), vec3(1000.0f, 0.02f, 1000.0f));
+        // draw ground
         GLuint worldMatrixLocation = glGetUniformLocation(shaderProgram, "worldMatrix");
-        // glUniformMatrix4fv(worldMatrixLocation, 1, GL_FALSE, &groundWorldMatrix[0][0]);
-
-        // glDrawArrays(GL_TRIANGLES, 0, 36); // 36 vertices, starting at index 0
 
         spinningCubeAngle += 180.0f * dt;
 
-        vec3 cubePosition(0.0f, 1.0f, -5.0f); // put the cube somewhere in world space
+        // put the cube somewhere in world space
+        vec3 cubePosition(0.0f, 1.0f, -5.0f);
 
-        if (!cameraFirstPerson) // only render the cube in third-person
+        // only render the cube in third-person
+        if (!cameraFirstPerson)
         {
-            mat4 spinningCubeWorldMatrix = translate(mat4(1.0f), cameraPosition) *
-                                           rotate(mat4(1.0f), radians(spinningCubeAngle), vec3(0.0f, 1.0f, 0.0f)) *
-                                           scale(mat4(1.0f), vec3(0.1f, 0.1f, 0.1f));
+            mat4 spinningCubeWorldMatrix = translate(
+				mat4(1.0f), cameraPosition
+			) * rotate(
+					mat4(1.0f), 
+					radians(spinningCubeAngle), 
+					vec3(0.0f, 1.0f, 0.0f)
+				) * scale(
+					mat4(1.0f), 
+					vec3(0.1f, 0.1f, 0.1f)
+					);
 
             glUniformMatrix4fv(worldMatrixLocation, 1, GL_FALSE, &spinningCubeWorldMatrix[0][0]);
             glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
@@ -669,20 +679,38 @@ int main(int argc, char *argv[])
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        // UPDATE ORB 1 logic
-        // Update orb angle for animation
+        // update orb 1 logic
+        // update orb angle for animation
         orbAngle += 20.0f * dt; // slow circular movement
 
-        // Compute orb position (orbiting around the player)
-        float orbX = cubePosition.x + orbRadius * cos(radians(orbAngle));
-        float orbZ = cubePosition.z + orbRadius * sin(radians(orbAngle));
-        float orbY = cubePosition.y + orbHeight + sin(radians(orbAngle * 2.0f)) * 0.2f;
+        // Define sun position as the center of orbit
+        vec3 sunPosition = vec3(5.0f, 3.0f, -10.0f);
+        float earthOrbitRadius = 5.0f;  // Larger orbit radius for Earth around the Sun
+        
+        // compute Earth position (orbiting around the Sun)
+        float orbX = sunPosition.x + earthOrbitRadius * cos(radians(orbAngle));
+        float orbZ = sunPosition.z + earthOrbitRadius * sin(radians(orbAngle));
+        float orbY = sunPosition.y;  // Keep Earth at Sun's height
 
         mat4 orbWorldMatrix =
-            translate(mat4(1.0f), vec3(orbX, orbY, orbZ)) * scale(mat4(1.0f), vec3(orbSize, orbSize, orbSize));
+            translate(
+                mat4(1.0f), 
+                vec3(orbX, orbY, orbZ)
+            ) * rotate(
+                mat4(1.0f),
+                radians(orbAngle),  // Rotate Earth on its axis
+                vec3(0.0f, 1.0f, 0.0f)
+            ) * scale(
+                mat4(1.0f), 
+                vec3(0.3f)  // Make Earth a bit larger
+            );
 
         // === RENDER SUN ===
-        mat4 sunWorldMatrix = translate(mat4(1.0f), vec3(5.0f, 3.0f, -10.0f)) * scale(mat4(1.0f), vec3(0.4f));
+        mat4 sunWorldMatrix = translate(
+			mat4(1.0f), 
+			vec3(5.0f, 3.0f, -10.0f)
+		) * scale(mat4(1.0f), vec3(1.0f));
+
         vec3 lightPos = vec3(5.0f, 3.0f, -10.0f); // same as sun position
 
         glUseProgram(orbShader);
@@ -723,15 +751,19 @@ int main(int argc, char *argv[])
 
         // compute moon position relative to the Earth
         float moonOrbitAngle = orbAngle * 4.0f; // moon orbits faster
-        float moonOrbitRadius = 0.5f;           // smaller orbit around earth
+        float moonOrbitRadius = 1.0f;  // increased radius for visibility
 
         // Earth's current position is orbX, orbY, orbZ
         float moonX = orbX + moonOrbitRadius * cos(radians(moonOrbitAngle));
         float moonZ = orbZ + moonOrbitRadius * sin(radians(moonOrbitAngle));
-        float moonY = orbY + 0.1f * sin(radians(moonOrbitAngle * 3.0f));
+        float moonY = orbY; // Keep the moon at the same height as Earth
 
-        mat4 moonWorldMatrix = translate(mat4(1.0f), vec3(moonX, moonY, moonZ)) *
-                               scale(mat4(1.0f), vec3(0.08f, 0.08f, 0.08f)); // smaller than earth
+        mat4 moonWorldMatrix = translate(
+			mat4(1.0f), vec3(moonX, moonY, moonZ)
+		) * scale(
+			mat4(1.0f), 
+			vec3(0.08f, 0.08f, 0.08f)
+		); // smaller than earth
 
         glUseProgram(orbShader);
         glActiveTexture(GL_TEXTURE0);
@@ -747,13 +779,15 @@ int main(int argc, char *argv[])
         glDrawElements(GL_TRIANGLES, moonIndexCount, GL_UNSIGNED_INT, 0);
 
 
-        // End Frame
+        // end Frame
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-        // Handle inputs
+        // handle inputs
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		{
             glfwSetWindowShouldClose(window, true);
+		}
 
         if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) // move camera down
         {
@@ -773,11 +807,8 @@ int main(int argc, char *argv[])
         float currentCameraSpeed = (fastCam) ? cameraFastSpeed : cameraSpeed;
 
 
-        // @TODO 4 - Calculate mouse motion dx and dy
-        //         - Update camera horizontal and vertical angle
-
-        // Move your mouse left/right to rotate the camera horizontally (yaw)
-        // Move your mouse up/down to rotate the camera vertically (pitch)
+        // move your mouse left/right to rotate the camera horizontally (yaw)
+        // move your mouse up/down to rotate the camera vertically (pitch)
 
         //get mouse position each frame
         double mousePosX, mousePosY;
@@ -796,7 +827,7 @@ int main(int argc, char *argv[])
         cameraHorizontalAngle -= dx * cameraAngularSpeed * dt;
         cameraVerticalAngle -= dy * cameraAngularSpeed * dt;
 
-        //Clamp vertical angle SO THAT camera does not move upside down.
+        // clamp vertical angle SO THAT camera does not move upside down.
         cameraVerticalAngle = std::max(-85.0f, std::min(85.0f, cameraVerticalAngle));
 
         // wrap horizontal angle FOR 360 EFFECT
@@ -814,7 +845,7 @@ int main(int argc, char *argv[])
         vec3 cameraSideVector = glm::cross(cameraLookAt, vec3(0.0f, 1.0f, 0.0f));
         glm::normalize(cameraSideVector);
 
-        // @TODO 5 = use camera lookat and side vectors to update positions with ASDW
+        // use camera lookat and side vectors to update positions with ASDW
         // adjust code below
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         {
@@ -835,8 +866,7 @@ int main(int argc, char *argv[])
 
         const float arrowLookSpeed = 60.0f; // degrees per second
 
-        //arrow keys camera
-
+        // arrow keys camera
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
         {
             cameraHorizontalAngle += arrowLookSpeed * dt;
@@ -855,7 +885,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Shutdown GLFW
+    // shutdown GLFW
     glfwTerminate();
 
     return 0;
