@@ -474,12 +474,14 @@ int main(int argc, char *argv[])
 	// set sampler to texture unit 0
 
     // load skybox cubemap textures
-    std::vector<std::string> faces = {"textures/skybox1/1.png",
-                                      "textures/skybox1/2.png",
-                                      "textures/skybox1/3.png",
-                                      "textures/skybox1/4.png",
-                                      "textures/skybox1/5.png",
-                                      "textures/skybox1/6.png"};
+    std::vector<std::string> faces = {
+		"textures/skybox1/1.png",
+        "textures/skybox1/2.png",
+        "textures/skybox1/3.png",
+        "textures/skybox1/4.png",
+        "textures/skybox1/5.png",
+        "textures/skybox1/6.png"
+	};
     unsigned int cubemapTexture = loadCubemap(faces);
 
     // camera parameters for view transform
@@ -548,6 +550,10 @@ int main(int argc, char *argv[])
     double lastMousePosX, lastMousePosY;
     glfwGetCursorPos(window, &lastMousePosX, &lastMousePosY);
 
+    // pause state
+    bool isPaused = false;
+    bool wasSpacePressed = false;
+
     // enable Backface culling
     glEnable(GL_CULL_FACE);
 
@@ -589,6 +595,19 @@ int main(int argc, char *argv[])
         // frame time calculation
         float dt = glfwGetTime() - lastFrameTime;
         lastFrameTime += dt;
+
+        // Handle spacebar toggle for pause
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            if (!wasSpacePressed) {
+                isPaused = !isPaused;
+                wasSpacePressed = true;
+            }
+        } else {
+            wasSpacePressed = false;
+        }
+
+        // Store the original dt for camera and cube movement
+        float animationDt = isPaused ? 0.0f : dt;
 
         // clear depth and color buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -681,10 +700,10 @@ int main(int argc, char *argv[])
 
         // update orb 1 logic
         // update orb angle for animation
-        orbAngle += 20.0f * dt; // slow circular movement
+        orbAngle += 20.0f * animationDt; // slow circular movement
 
-        // Define sun position as the center of orbit
-        vec3 sunPosition = vec3(5.0f, 3.0f, -10.0f);
+        // Define fixed sun position as the center of orbit
+        vec3 sunPosition = vec3(0.0f, 0.0f, -20.0f);  // Moved back further and centered
         float earthOrbitRadius = 5.0f;  // Larger orbit radius for Earth around the Sun
         
         // compute Earth position (orbiting around the Sun)
@@ -706,12 +725,20 @@ int main(int argc, char *argv[])
             );
 
         // === RENDER SUN ===
+        // Update sun rotation
+        static float sunRotationAngle = 0.0f;
+        sunRotationAngle += 15.0f * animationDt; // Rotate 15 degrees per second
+
         mat4 sunWorldMatrix = translate(
 			mat4(1.0f), 
-			vec3(5.0f, 3.0f, -10.0f)
-		) * scale(mat4(1.0f), vec3(1.0f));
+            sunPosition
+        ) * rotate(
+            mat4(1.0f),
+            radians(sunRotationAngle),
+            vec3(0.0f, 1.0f, 0.0f)  // Rotate around Y axis
+        ) * scale(mat4(1.0f), vec3(2.0f));  // Made sun bigger
 
-        vec3 lightPos = vec3(5.0f, 3.0f, -10.0f); // same as sun position
+        vec3 lightPos = sunPosition; // same as sun position
 
         glUseProgram(orbShader);
         glActiveTexture(GL_TEXTURE0);
@@ -750,6 +777,7 @@ int main(int argc, char *argv[])
         // === Render the Moon orbiting around the Earth ===
 
         // compute moon position relative to the Earth
+        // Moon's orbit speed is relative to Earth's orbit, so we use the same time scale
         float moonOrbitAngle = orbAngle * 4.0f; // moon orbits faster
         float moonOrbitRadius = 1.0f;  // increased radius for visibility
 
